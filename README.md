@@ -37,26 +37,50 @@ DSH 默认把整个工作区暴露给智能体：开工前先扫一遍工作区�
 把这句话发给你的 DSH 智能体：
 
 ```
-帮我装一个 DSH 插件：从 https://github.com/lfq192/dsh-project-scope 安装 bundle，
-用 plugin_manager action=install_bundle target=github:lfq192/dsh-project-scope，
-装完告诉我工具名、/project 命令和第一件该做的事。
+帮我装一个 DSH 插件 dsh-project-scope：
+plugin_manager action="install_bundle" target="https://github.com/lfq192/dsh-project-scope/releases/download/v1.1.1/dsh-project-scope-1.1.1.tar.gz"
+装完告诉我 project 工具的 8 个 action、/project 命令，以及第一件该做的事。
 ```
 
-### 方式 2：手动
+### 方式 2：手动（三种 target 都可以）
 
-在 DSH 里（或让智能体代跑）：
-
-```
-plugin_manager  action=install_bundle  target=github:lfq192/dsh-project-scope
-```
-
-也可以给本地路径（必须绝对路径）：
+**发行包 tarball（最稳，不依赖 git）**
 
 ```
-plugin_manager  action=install_bundle  target=C:\path\to\dsh-project-scope
+plugin_manager  action="install_bundle"  target="https://github.com/lfq192/dsh-project-scope/releases/download/v1.1.1/dsh-project-scope-1.1.1.tar.gz"
 ```
+
+**分支快照 tarball（永远最新）**
+
+```
+plugin_manager  action="install_bundle"  target="https://codeload.github.com/lfq192/dsh-project-scope/tar.gz/refs/heads/main"
+```
+
+**git spec（需要机器上有 git，且能被 GitHub 访问）**
+
+```
+plugin_manager  action="install_bundle"  target="github:lfq192/dsh-project-scope"
+```
+
+**本地目录（必须绝对路径）**
+
+```
+plugin_manager  action="install_bundle"  target="C:/path/to/dsh-project-scope"
+```
+
+> 选 tarball 的理由：`github:` / `git+https://` 这类 spec 会被 pnpm 交给 `git ls-remote`
+> 去解析 ref，机器上没有 git 时会直接 `spawn git ENOENT`。tarball 只走 HTTP，装完
+> pnpm 会按 `package.json` 的 `files` 字段打进 node_modules —— 本仓库的 `files` 已包含
+> `lib/index.js`、`cordis.patch.yml`、`README.md`、`LICENSE`。
 
 安装是 live 的 —— 当前会话立刻生效，不需要重启。
+
+### 升级
+
+宿主按「包 specifier + 文件路径」缓存 ESM 模块，**同一个包名下改了代码不会重新求值**。
+升级时请让 `package.json` 的 `name` 与 `cordis.patch.yml` 的 `id` 一起换（例如
+`dsh-project-scope` → `dsh-project-scope-111`），再 `install_bundle`；本地覆盖安装则
+把实现放进新文件名的模块里。
 
 ---
 
