@@ -1,0 +1,43 @@
+{
+  "name": "dsh-project-scope",
+  "version": "1.1.1",
+  "private": false,
+  "type": "module",
+  "description": "Project-centric workspace isolation for DeepSeek Harness: one assignment = one isolated project directory with inputs/, work/, deliverables/, plus hard guards so a new task never reads the previous one.",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": ["lib/index.js", "cordis.patch.yml", "README.md", "LICENSE"],
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "cordis",
+    "plugin",
+    "project",
+    "isolation",
+    "workspace",
+    "deliverables"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lfq192/dsh-project-scope.git"
+  },
+  "bugs": { "url": "https://github.com/lfq192/dsh-project-scope/issues" },
+  "homepage": "https://github.com/lfq192/dsh-project-scope#readme",
+  "scripts": {
+    "test": "node test/harness.mjs"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "compatibility": {
+      "dshReleases": {
+        "0.2.0-rc.2+": "compatible",
+        "0.2.1-rc.2+": "compatible",
+        "0.2.2-rc.1+": "compatible"
+      }
+    }
+  }
+}
