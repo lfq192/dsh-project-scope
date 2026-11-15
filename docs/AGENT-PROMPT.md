@@ -7,6 +7,51 @@
 
 ---
 
+## 零、如果你要的正是「项目隔离」这件事
+
+不必读完全文 —— 把下面这段原样粘给智能体，它会做出和本仓库同类的东西：
+
+> 我在用 DeepSeek Harness 工作，有两个具体痛点：
+>
+> 1. **开工前 DSH 会把我整个工作区读一遍**。工作区里堆着上一次任务留下的脚本和产物，
+>    既占上下文，也容易把上一次的思路串进这一次。
+> 2. **脚本散落在工作区根目录**。探查脚本、一次性命令、中间产物全丢在根目录，
+>    不好管理；交付物和过程文件混在一起，`present` 时容易把过程脚本当成果递出去。
+>
+> 请做一个 DSH host 插件，做到：**以「项目」为中心，一次任务 = 一个项目目录**。
+>
+> 具体要求：
+>
+> - 在一个工作区下建 `projects/<项目名>/`，里面固定三个子目录：
+>   `inputs/`（参考文档、原始素材，只读语义）、`work/`（过程脚本、中间产物）、
+>   `deliverables/`（最终交付物），外加一个 `PROJECT.md` 记录目标、素材、交付记录。
+> - 智能体的 `write` / `edit` 只能落在活跃项目内；落在外面的要被拒，并在拒绝文案里
+>   告诉它该去 `work/` 还是 `deliverables/`。
+> - 智能体读 / 检索时，**别的项目目录要被拒**。当会话还没有活跃项目时，
+>   **所有**项目都算「别人的项目」—— 读、检索全拒，连写也拒，逼它先建项目。
+>   这一条是「新作业不会翻上一次成果」的关键。
+> - `glob` / `grep` / 读目录如果覆盖到了兄弟项目（包括工作区根、`projects/` 根），
+>   要被拒并提示把 `path` 收窄到活跃项目内。
+> - `present` 只接受 `deliverables/` 里的文件 —— 过程脚本不能被当成交付物递出去。
+> - 提供一个工具（比如 `project`），action 至少覆盖：建项目（可带参考素材，建时复制进
+>   `inputs/`）、切换项目、列出项目、查看状态、把文件归入交付目录、把工作区根目录的
+>   散落脚本收进 `work/_stray/`、清除活跃项目。
+> - 再提供同名斜杠命令 `/project`，让用户不用记 JSON。
+> - 注入一段系统提示词，把当前项目路径、三个目录、硬性规则告诉智能体。
+>
+> 还有一个更强的模式要留出来：把项目目录登记成**独立的 DSH 工作区**，
+> 这样 `session.header.cwd` 就是项目目录，沙箱的 `workspace-write` 边界天然等于项目边界，
+> 隔离由宿主完成，不依赖守卫。
+>
+> 示例场景（验收要按这个跑一遍）：新建一个项目做数据库课程作业，
+> 参考文档放进 `inputs/`，写 MySQL 代码和数据库设计文档，交付物只留这两样；
+> 然后做第二次作业，**不再读上一次的任何东西**，新产物也不进上一次的 `deliverables/`。
+>
+> 不许把功能做小来「保守安全」：把上面这些行为都实现，副作用与边界写进 README 的
+> 「已知边界」一节。下面第一节有宿主 API 的具体入口和必踩的坑。
+
+---
+
 ## 一、复制这段给智能体
 
 > 我要给 DeepSeek Harness（DSH）做一个 host 插件。**先不要写代码**，按下面的顺序来。
@@ -175,6 +220,23 @@ const order = Number.isFinite(base) ? base + 1 : 501
 
 不是包名。写 `include:project-scope`，不是 `dsh-project-scope`。
 改过插件 `package.json` 后条目会变 `readOnlyReason: "unaddressable"`，必须重新 `install_bundle`。
+
+### 11. 想被别人一键装：用 tarball，不要用 `github:` spec
+
+`plugin_manager` 认四种 spec（`dsh-plugin-manager/lib/index.js:72` 的 `parseInstallSpec`）：
+注册表包名、**绝对路径**、git 地址（`github:` / `git+https://` / `git@host:path` /
+`https://host/owner/repo`）、以及 **`.tgz` / `.tar.gz` tarball URL**（同文件 `:33` 的 `TARBALL_SPEC`）。
+
+`github:` 这类 git spec 会交给 pnpm 去 `git ls-remote` 解析 ref —— 用户机器上没有 git 时直接
+`spawn git ENOENT`。所以对外分发请给 tarball URL：GitHub Release 的 asset 或
+`codeload.github.com/<owner>/<repo>/tar.gz/refs/(heads|tags)/<ref>` 都可以，实测 pnpm 能装：
+
+```
+plugin_manager  action="install_bundle"  target="https://codeload.github.com/lfq192/dsh-project-scope/tar.gz/refs/heads/main"
+```
+
+`package.json` 里的 `files` 必须包含全部运行时文件（`lib/*.js`、`cordis.patch.yml`），
+否则装进 `node_modules` 的内容不全。
 
 ---
 
