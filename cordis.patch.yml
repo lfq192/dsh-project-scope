@@ -1,0 +1,4 @@
+# Bundle patch layer: project-scope
+- insert:
+    - id: project-scope
+      name: dsh-project-scope
